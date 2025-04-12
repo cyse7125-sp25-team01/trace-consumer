@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY kafka/kafka_pdf_consumer.py .
+COPY kafka_pdf_consumer.py .
 COPY config ./config
 COPY gcs ./gcs
 COPY parser ./parser
