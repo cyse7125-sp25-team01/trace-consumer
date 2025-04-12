@@ -12,7 +12,7 @@ from parser.trace_cleaner import process_pdf_text, extract_metadata_from_filenam
 from db.db_insert import store_in_database
 from embedding.chunker import chunk_document_data
 from embedding.pinecone_uploader import upload_chunks_to_pinecone
-from config.settings import PINECONE_API_KEY, PINECONE_ENVIRONMENT, PINECONE_INDEX
+from config.settings import PINECONE_API_KEY, PINECONE_ENVIRONMENT, PINECONE_INDEX,KAFKA_BOOTSTRAP_SERVERS,KAFKA_TOPIC_NAME, LOCAL_PDF_DIR, KAFKA_GROUP_ID
 
 # Set up logging to be captured in Kubernetes
 logging.basicConfig(
@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger('kafka-pdf-consumer')
 
 # Create a directory for PDFs with proper absolute path
-local_dir = "/tmp/pdfs"  # Use a standard temp directory in containers
+local_dir = LOCAL_PDF_DIR  # Use a standard temp directory in containers
 os.makedirs(local_dir, exist_ok=True)
 
 # Initialize database connection
@@ -37,10 +37,10 @@ except Exception as e:
 # Initialize the Kafka consumer
 try:
     consumer = KafkaConsumer(
-        "gcs-topic",
-        bootstrap_servers="kafka:9092",
+        KAFKA_TOPIC_NAME,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-        group_id="pdf-processing-group",
+        group_id=KAFKA_GROUP_ID,
         # Improved settings for reliability
         auto_offset_reset='earliest',  # Start from earliest unprocessed message
         enable_auto_commit=True,  # Auto-commit offsets
