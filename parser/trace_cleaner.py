@@ -1,10 +1,6 @@
 import re
 
 def extract_metadata_from_filename(filename):
-    """
-    Extract metadata from standardized filename pattern.
-    Example: Parikh_Tejas_000937178_Spring-2024_CSYE622503Lecture_Instructor-Report.pdf
-    """
     pattern = r'([A-Za-z]+)_([A-Za-z]+)_(\d+)_([A-Za-z]+)-(\d{4})_([A-Za-z0-9]+)_([A-Za-z-]+).pdf'
     match = re.match(pattern, filename)
     if match:
@@ -37,17 +33,12 @@ def clean_evaluation_text(text):
     instructor_match = re.search(r'Instructor:\s*([^\n\r]+)', text)
     if instructor_match:
         name_raw = instructor_match.group(1).strip()
-
-        # Trim if subject or other fields are accidentally pulled in
         name_raw = re.split(r'Subject:|Catalog & Section:|Enrollment:', name_raw)[0].strip()
-
-        # Normalize "Last, First" to "First Last"
         if "," in name_raw:
             last, first = name_raw.split(",", 1)
             instructor_name = f"{first.strip()} {last.strip()}"
         else:
             instructor_name = name_raw
-
         results['course_info']['instructor'] = instructor_name
 
     subject_match = re.search(r'Subject:\s*(\w+)', text)
@@ -70,8 +61,19 @@ def clean_evaluation_text(text):
     if declines_match:
         results['course_info']['declines'] = int(declines_match.group(1))
 
-    comment_sections = re.findall(r'Q:\s+(What.*?|Please.*?)\n((?:\d+\s+.*?\n)+)', text, re.DOTALL)
-    for question, comments_block in comment_sections:
+    # Match specific open-ended TRACE questions and group related answers
+    predefined_questions = [
+        "What were the strengths of this course and/or this instructor\?",
+        "What could the instructor do to make this course better\?",
+        "Please expand on the instructor’s strengths and/or areas for improvement in facilitating inclusive learning\.",
+        "Please comment on your experience of the online course environment in the open-ended text box\.",
+        "What I could have done to make this course better for myself\."
+    ]
+
+    question_pattern = r'Q:\s+(' + '|'.join(predefined_questions) + r')\s*((?:\d+\s+.*?\n)+)'
+    matches = re.findall(question_pattern, text, re.DOTALL)
+
+    for question, comments_block in matches:
         question = question.strip()
         individual_comments = re.findall(r'(\d+)\s+(.*?)(?=\n\d+\s+|\Z)', comments_block + '\n', re.DOTALL)
         for comment_num, comment_text in individual_comments:
@@ -81,8 +83,8 @@ def clean_evaluation_text(text):
                 'text': comment_text.strip()
             })
 
-    clean_text = re.sub(r'Netwrk Strctrs Cloud Cmpting \(Spring \d{4}\).*?Declines:', '', text, flags=re.DOTALL)
-    clean_text = re.sub(r'(Question|Number of Responses|Response Rate|Course Mean|Dept\. Mean|Univ\. Mean|Course Median|Dept\. Median|Univ\. Median)\s+', '', clean_text)
+    clean_text = re.sub(r'^.*?(?=Declines:)', '', text, flags=re.DOTALL)
+    clean_text = re.sub(r'(Question|Number of Responses|Response Rate|Course Mean|Dept\\. Mean|Univ\\. Mean|Course Median|Dept\\. Median|Univ\\. Median)\s+', '', clean_text)
     clean_text = re.sub(r'Note: 5:.*?;', '', clean_text)
     clean_text = re.sub(r'\n\s*\d+\s*\n', '\n', clean_text)
     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
@@ -98,8 +100,7 @@ def extract_ratings_data(text):
 
     for section_title, section_content in sections:
         section_title = section_title.strip()
-        rating_rows = re.findall(r'([A-Za-z].*?)\s+(\d+)\s+(\d+%)\s+(\d+\.\d+)\s+(\d+\.\d+)\s+(\d+\.\d+)',
-                                 section_content)
+        rating_rows = re.findall(r'([A-Za-z].*?)\s+(\d+)\s+(\d+%)\s+(\d+\.\d+)\s+(\d+\.\d+)\s+(\d+\.\d+)', section_content)
         for row in rating_rows:
             try:
                 ratings.append({
